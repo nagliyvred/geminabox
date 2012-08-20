@@ -11,6 +11,7 @@ require 'rss/atom'
 class Geminabox < Sinatra::Base
   enable :static, :methodoverride
 
+  set :repos, "http://rubygems.org"
   set :public_folder, File.join(File.dirname(__FILE__), *%w[.. public])
   set :data, File.join(File.dirname(__FILE__), *%w[.. data])
   set :local_data, File.join(File.dirname(__FILE__), *%w[.. data local])
@@ -79,14 +80,15 @@ class Geminabox < Sinatra::Base
 
   def resolve_external(list)
     client = HTTPClient.new
-    url = "http://rubygems.org/api/v1/dependencies?gems=#{list.join(',')}"
-    puts "proxying call to #{url}"
-    response = client.get(url, :follow_redirect => true)
-    if response.status != 200
-     error_response(500, "Failed to contact underlying server: #{response.content}" )
+    data = nil
+    settings.repos.each do |repo|
+      url = "#{repo}/api/v1/dependencies?gems=#{list.join(',')}"
+      puts "proxying call to #{url}"
+      response = client.get(url, :follow_redirect => true)
+      data = Marshal.load(response.content) if response.status == 200
     end
-    Marshal.load(response.content)
-
+    error_response(500, "Failed to contact underlying server: #{response.content}" ) unless data != nil 
+    data
   end
 
   get '/upload' do

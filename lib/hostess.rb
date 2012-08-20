@@ -2,7 +2,6 @@ require 'sinatra/base'
 require 'httpclient'
 
 class Hostess < Sinatra::Base
-  REPOS = ["http://rubygems.org"]
 
   def initialize(param)
     super(param)
@@ -33,7 +32,7 @@ class Hostess < Sinatra::Base
   def serve(path)
     puts "serve #{path}"
     unless local_file_exists?(path)
-      REPOS.each do |repo|
+      Geminabox.repos.each do |repo|
         break if pull_remote_file(repo, path, Geminabox.data)
       end
     end
@@ -42,7 +41,7 @@ class Hostess < Sinatra::Base
   end
 
   def is_local?(gemname)
-    File.exists?(File.join(Geminabox.data, 'local', gemname))
+    File.exists?(File.join(Geminabox.local_data, gemname))
   end
 
   def local_file(gemname)
