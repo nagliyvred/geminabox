@@ -13,6 +13,8 @@ class Geminabox < Sinatra::Base
 
   set :public_folder, File.join(File.dirname(__FILE__), *%w[.. public])
   set :data, File.join(File.dirname(__FILE__), *%w[.. data])
+  set :local_data, File.join(File.dirname(__FILE__), *%w[.. data local])
+  set :general_data, File.join(File.dirname(__FILE__), *%w[.. data general])
   set :build_legacy, false
   set :incremental_updates, false
   set :views, File.join(File.dirname(__FILE__), *%w[.. views])
@@ -49,21 +51,42 @@ class Geminabox < Sinatra::Base
     erb :atom, :layout => false
   end
 
+
+  def calculate_dependencies(gem)
+    spec = spec_for(gem.name, gem.number)
+    {
+      :name => gem.name,
+      :number => gem.number.version,
+      :platform => gem.platform,
+      :dependencies => spec.dependencies.select {|dep| dep.type == :runtime}.map {|dep| [dep.name, dep.requirement.to_s] }
+    }
+  end
+
   get '/api/v1/dependencies' do
     query_gems = params[:gems].split(',').sort
-    cache_key = query_gems.join(',')
-    disk_cache.cache(cache_key) do
-      deps = load_gems.gems.select {|gem| query_gems.include?(gem.name) }.map do |gem|
-        spec = spec_for(gem.name, gem.number)
-        {
-          :name => gem.name,
-          :number => gem.number.version,
-          :platform => gem.platform,
-          :dependencies => spec.dependencies.select {|dep| dep.type == :runtime}.map {|dep| [dep.name, dep.requirement.to_s] }
-        }
+    disk_cache.cache(params[:gems]) do
+      local_gems = load_gems.gems
+      deps = local_gems.select {|gem| query_gems.include?(gem.name) }.map do |gem|
+        query_gems.delete(gem.name)
+        calculate_dependencies(gem)
       end
-      Marshal.dump(deps)
+      ext_deps = resolve_external(query_gems)
+      Marshal.dump(deps + ext_deps)
     end
+  end
+  
+
+
+  def resolve_external(list)
+    client = HTTPClient.new
+    url = "http://rubygems.org/api/v1/dependencies?gems=#{list.join(',')}"
+    puts "proxying call to #{url}"
+    response = client.get(url, :follow_redirect => true)
+    if response.status != 200
+     error_response(500, "Failed to contact underlying server: #{response.content}" )
+    end
+    Marshal.load(response.content)
+
   end
 
   get '/upload' do
@@ -182,7 +205,7 @@ HTML
   def load_gems
     @loaded_gems ||=
       %w(specs prerelease_specs).inject(GemVersionCollection.new){|gems, specs_file_type|
-        specs_file_path = File.join(settings.data, "#{specs_file_type}.#{Gem.marshal_version}.gz")
+        specs_file_path = File.join(settings.local_data, "#{specs_file_type}.#{Gem.marshal_version}.gz")
         if File.exists?(specs_file_path)
           gems |= Geminabox::GemVersionCollection.new(Marshal.load(Gem.gunzip(Gem.read_binary(specs_file_path))))
         end
@@ -196,7 +219,7 @@ HTML
 
   helpers do
     def spec_for(gem_name, version)
-      spec_file = File.join(settings.data, "quick", "Marshal.#{Gem.marshal_version}", "#{gem_name}-#{version}.gemspec.rz")
+      spec_file = File.join(settings.local_data, "quick", "Marshal.#{Gem.marshal_version}", "#{gem_name}-#{version}.gemspec.rz")
       Marshal.load(Gem.inflate(File.read(spec_file))) if File.exists? spec_file
     end
   end
