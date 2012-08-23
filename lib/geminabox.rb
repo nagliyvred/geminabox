@@ -81,13 +81,15 @@ class Geminabox < Sinatra::Base
   def resolve_external(list)
     client = HTTPClient.new
     data = nil
+    response = nil
     settings.repos.each do |repo|
       url = "#{repo}/api/v1/dependencies?gems=#{list.join(',')}"
       puts "proxying call to #{url}"
       response = client.get(url, :follow_redirect => true)
       data = Marshal.load(response.content) if response.status == 200
     end
-    error_response(500, "Failed to contact underlying server: #{response.content}" ) unless data != nil 
+    response.content ? response.content : "no response content"
+    error_response(500, "Failed to contact underlying server: #{response.content ? response.content : "no response content" }" ) if data == nil 
     data
   end
 

@@ -63,7 +63,7 @@ class Merger
   end
 
   def pack(data)
-    if !@filename.end_with?("gz")
+    if @filename.end_with?("gz")
       Gem.gzip(data)
     else 
       Gem.deflate(data)
@@ -101,7 +101,7 @@ class Merger
 
 end
 
-TEST_DATA_DIR="/Users/edudin/github/geminabox/data"
+TEST_DATA_DIR="/Users/tim/work/geminabox/data"
 Geminabox.local_data = TEST_DATA_DIR + "/local/"
 Geminabox.general_data = TEST_DATA_DIR + "/general/"
 SpecMerge.new().run_merge

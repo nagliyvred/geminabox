@@ -37,7 +37,7 @@ end
 
 FILES = [#'latest_specs.4.8.gz', 'prerelease_specs.4.8.gz', 'specs.4.8.gz',
   'Marshal.4.8.Z']
-DIR="/Users/edudin/github/geminabox/data/"
+DIR="/Users/tim/work/geminabox/data/"
 
 FILES.each do |file|
 
