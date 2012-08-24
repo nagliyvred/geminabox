@@ -22,6 +22,8 @@ class MiniTest::Unit::TestCase
     FileUtils.rm_rf(TEST_DATA_DIR)
     FileUtils.mkdir(TEST_DATA_DIR)
     Geminabox.data = TEST_DATA_DIR
+    Geminabox.local_data = TEST_DATA_DIR + "/local"
+    Geminabox.general_data = TEST_DATA_DIR + '/general'
   end
 
   def self.fixture(path)

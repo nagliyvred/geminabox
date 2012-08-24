@@ -9,6 +9,10 @@ require 'geminabox/version'
 require 'rss/atom'
 
 class Geminabox < Sinatra::Base
+  configure do
+    enable :logging
+  end
+
   enable :static, :methodoverride
 
   set :repos, "http://rubygems.org"
@@ -84,7 +88,7 @@ class Geminabox < Sinatra::Base
     response = nil
     settings.repos.each do |repo|
       url = "#{repo}/api/v1/dependencies?gems=#{list.join(',')}"
-      puts "proxying call to #{url}"
+      env['rack.logger'].info "proxying call to #{url}"
       response = client.get(url, :follow_redirect => true)
       data = Marshal.load(response.content) if response.status == 200
     end
@@ -186,8 +190,8 @@ HTML
       begin
         indexer.update_index
       rescue => e
-        puts "#{e.class}:#{e.message}"
-        puts e.backtrace.join("\n")
+        logger.info "#{e.class}:#{e.message}"
+        logger.info e.backtrace.join("\n")
         reindex(:force_rebuild)
       end
     end

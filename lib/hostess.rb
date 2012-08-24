@@ -2,10 +2,16 @@ require 'sinatra/base'
 require 'httpclient'
 
 class Hostess < Sinatra::Base
+  configure do
+    enable :logging
+  end
 
+  before do
+    logger.level = Logger::INFO
+  end
+ 
   def initialize(param)
     super(param)
-    puts "initializing hostess"
     %w[local general].each do |path|
       FileUtils.mkdir_p(local_file(path + '/quick/Marshal.4.8'))
       FileUtils.mkdir_p(local_file(path + "/gems"))
@@ -30,7 +36,7 @@ class Hostess < Sinatra::Base
   end
 
   def serve(path)
-    puts "serve #{path}"
+    logger.info "serve #{path}"
     unless local_file_exists?(path)
       Geminabox.repos.each do |repo|
         break if pull_remote_file(repo, path, Geminabox.data)
@@ -49,12 +55,12 @@ class Hostess < Sinatra::Base
   end
 
   def local_file_exists?(gemname)
-      puts "checking existence of #{gemname} #{local_file(gemname)}"
+      logger.info "checking existence of #{gemname} #{local_file(gemname)}"
       File.exists?(local_file(gemname))
   end
 
   def pull_remote_file(repo, file_path, path)
-    puts "pulling file #{file_path} from the repo #{repo} and putting it to #{path}"
+    logger.info "pulling file #{file_path} from the repo #{repo} and putting it to #{path}"
     url = repo + file_path.sub('/local','').sub('/general','')
     download(url, local_file(file_path))
   end
@@ -62,10 +68,10 @@ class Hostess < Sinatra::Base
   def download(url, filename)
     http_client = HTTPClient.new
     response = http_client.get(url, :follow_redirect => true)
-    puts "downloading #{url} #{response.status}"
+    logger.info "downloading #{url} #{response.status}"
     if response.status == 200 
       File.open(filename, "wb") { |f| f.write(response.content) }
-      puts "saved file #{filename}"
+      logger.info "saved file #{filename}"
       return true
     end
     return false
