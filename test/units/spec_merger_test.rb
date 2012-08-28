@@ -1,6 +1,5 @@
 require 'test_helper'
 require 'mocha'
-#require 'geminabox/spec_merger'
 
 class SpecMergerTest < MiniTest::Unit::TestCase
     DIR = "/tmp/geminabox-merger-test"
@@ -16,12 +15,13 @@ class SpecMergerTest < MiniTest::Unit::TestCase
         ["accumulators", Gem::Version.new("0.5.1"), "ruby"],
         ["acdc", Gem::Version.new("0.7.7"), "ruby"]
     ] 
+
     def test_merger
         url = "http://something.com"
         file_name = "latest_specs.4.8.gz"
-        Geminabox.expects(:download_data).with(url + "/" + file_name ).returns(Gem.gzip(Marshal.dump(LOCAL_SPEC)))
-        mock_file = mock('file')
-        #mock_file.expects(:read).returns(Gem.gzip(Marshal.dump(REMOTE_SPEC)))
+
+        stub_request(:get, url + "/#{file_name}").to_return(:status => 200, :body => Gem.gzip(Marshal.dump(LOCAL_SPEC)))
+
         File.expects(:open).with(fixture("latest_specs.4.8.gz")).returns(Gem.gzip(Marshal.dump(REMOTE_SPEC)))
 
         merger = Geminabox::Merger.new( url, fixture("latest_specs.4.8.gz")) 

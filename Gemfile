@@ -1,4 +1,6 @@
-source :rubygems
+source "http://rubygems.org"
 
-require 'mocha'
+gem 'mocha'
+gem 'webmock'
+
 gemspec

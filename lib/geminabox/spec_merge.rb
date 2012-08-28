@@ -6,7 +6,7 @@ module GeminaboxTools
   def self.download_data(url)
     client = HTTPClient.new
     response = client.get(url, :follow_redirect => true)
-    puts "response code is #{response.status}"
+    fail "failed to download #{url}: #{response.status}" unless response.status == 200
     response.content
   end
 
@@ -20,16 +20,14 @@ FILES = [ 'latest_specs.4.8.gz',
           'specs.4.8.gz',
           'Marshal.4.8.Z']
 
-REPOS = [ "http://rubygems.org"]
 
   def run_merge
 
     FILES.each do |file|
 
-      REPOS.each do |repo|
-        puts "handling #{file}"
+      Geminabox.repos.each do |repo|
+        puts "merging #{file}"
         filename = Geminabox.local_data + file
-        puts "filename=#{filename}"
         merger = Merger.new(repo, filename) 
         result = merger.merge
         merger.marshal_to_file(Geminabox.general_data + file, result)
@@ -37,17 +35,12 @@ REPOS = [ "http://rubygems.org"]
 
     end
   end
-
-  
-
-
 end
 
 
 class Merger
 
   def initialize(repo, filename)
-    puts filename.split("/").last
     @filename = filename
     @local_data = File.open(filename) { |f| f.read }
     @remote_data = GeminaboxTools::download_data("#{repo}/#{filename.split("/").last}" )
@@ -83,25 +76,21 @@ class Merger
   def merge
     local = load_marshalled(@local_data)
     remote = load_marshalled(@remote_data)
-    puts "remote=#{remote.type}"
-    puts "local=#{local.type}"
-    puts "remote  #{remote.first.inspect} local #{local.first.inspect}"
 
     if @filename.include?("Marshal.4.8")
       local.each do |full_name, gem|
         remote += [full_name, gem]
       end
-
     else
       remote += local
     end
-
     remote
   end
 
 end
-
+=begin
 TEST_DATA_DIR="/Users/tim/work/geminabox/data"
 Geminabox.local_data = TEST_DATA_DIR + "/local/"
 Geminabox.general_data = TEST_DATA_DIR + "/general/"
 SpecMerge.new().run_merge
+=end

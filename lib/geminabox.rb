@@ -15,6 +15,7 @@ class Geminabox < Sinatra::Base
 
   enable :static, :methodoverride
 
+  set :enable_proxy_cache, false
   set :repos, "http://rubygems.org"
   set :public_folder, File.join(File.dirname(__FILE__), *%w[.. public])
   set :data, File.join(File.dirname(__FILE__), *%w[.. data])
@@ -24,6 +25,8 @@ class Geminabox < Sinatra::Base
   set :incremental_updates, false
   set :views, File.join(File.dirname(__FILE__), *%w[.. views])
   set :allow_replace, false
+  set :logging, true
+  set :dump_errors, true
   use Hostess
 
   class << self
@@ -40,6 +43,7 @@ class Geminabox < Sinatra::Base
 
   autoload :GemVersionCollection, "geminabox/gem_version_collection"
   autoload :DiskCache, "geminabox/disk_cache"
+  autoload :Merger, "geminabox/spec_merge.rb"
 
   before do
     headers 'X-Powered-By' => "geminabox #{GeminaboxVersion}"
@@ -83,6 +87,8 @@ class Geminabox < Sinatra::Base
 
 
   def resolve_external(list)
+    return [] unless Geminabox.enable_proxy_cache
+
     client = HTTPClient.new
     data = nil
     response = nil
@@ -113,14 +119,14 @@ class Geminabox < Sinatra::Base
   end
 
   post '/upload' do
-    if File.exists? Geminabox.data
-      error_response( 500, "Please ensure #{File.expand_path(Geminabox.data)} is a directory." ) unless File.directory? Geminabox.data
-      error_response( 500, "Please ensure #{File.expand_path(Geminabox.data)} is writable by the geminabox web server." ) unless File.writable? Geminabox.data
+    if File.exists? Geminabox.local_data
+      error_response( 500, "Please ensure #{File.expand_path(Geminabox.local_data)} is a directory." ) unless File.directory? Geminabox.local_data
+      error_response( 500, "Please ensure #{File.expand_path(Geminabox.local_data)} is writable by the geminabox web server." ) unless File.writable? Geminabox.local_data
     else
       begin
-        FileUtils.mkdir_p(settings.data)
+        FileUtils.mkdir_p(settings.local_data)
       rescue Errno::EACCES, Errno::ENOENT, RuntimeError => e
-        error_response( 500, "Could not create #{File.expand_path(Geminabox.data)}.\n#{e}\n#{e.message}" )
+        error_response( 500, "Could not create #{File.expand_path(Geminabox.local_data)}.\n#{e}\n#{e.message}" )
       end
     end
 
@@ -129,12 +135,12 @@ class Geminabox < Sinatra::Base
       halt [400, erb(:upload)]
     end
 
-    FileUtils.mkdir_p(File.join(settings.data, "gems"))
+    FileUtils.mkdir_p(File.join(settings.local_data, "gems"))
 
     tmpfile.binmode
 
     gem_name = File.basename(name)
-    dest_filename = File.join(settings.data, "gems", gem_name)
+    dest_filename = File.join(settings.local_data, "gems", gem_name)
 
     if Geminabox.disallow_replace? and File.exist?(dest_filename)
       existing_file_digest = Digest::SHA1.file(dest_filename).hexdigest
@@ -199,7 +205,7 @@ HTML
   end
 
   def indexer
-    Gem::Indexer.new(settings.data, :build_legacy => settings.build_legacy)
+    Gem::Indexer.new(settings.local_data, :build_legacy => settings.build_legacy)
   end
 
   def file_path

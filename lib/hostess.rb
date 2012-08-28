@@ -37,7 +37,8 @@ class Hostess < Sinatra::Base
 
   def serve(path)
     logger.info "serve #{path}"
-    unless local_file_exists?(path)
+
+    if Geminabox.enable_proxy_cache && !local_file_exists?(path) 
       Geminabox.repos.each do |repo|
         break if pull_remote_file(repo, path, Geminabox.data)
       end
@@ -62,6 +63,7 @@ class Hostess < Sinatra::Base
   def pull_remote_file(repo, file_path, path)
     logger.info "pulling file #{file_path} from the repo #{repo} and putting it to #{path}"
     url = repo + file_path.sub('/local','').sub('/general','')
+
     download(url, local_file(file_path))
   end
 
@@ -70,6 +72,8 @@ class Hostess < Sinatra::Base
     response = http_client.get(url, :follow_redirect => true)
     logger.info "downloading #{url} #{response.status}"
     if response.status == 200 
+      dir = File.dirname(filename)
+      FileUtils.mkdir_p(dir) unless File.exists?(dir)
       File.open(filename, "wb") { |f| f.write(response.content) }
       logger.info "saved file #{filename}"
       return true
