@@ -27,7 +27,6 @@ class ProxyTest < MiniTest::Unit::TestCase
   test "repo returns a file from the underlying repository if it is not found locally" do
     stub_request(:get, SOME_REPO + "/gems/existing.gem").to_return(:status => 200, :body => "this is a gem's content")
     get "/gems/existing.gem"
-    puts "existing gem"
     assert last_response.body.size > 0
     assert last_response.status == 200, last_response.errors
     assert_equal last_response.body, "this is a gem's content"

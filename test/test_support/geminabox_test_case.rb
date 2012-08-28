@@ -27,7 +27,7 @@ class Geminabox::TestCase < MiniTest::Unit::TestCase
     end
 
     def data(data = nil)
-      @data ||= data || "/tmp/geminabox-test-data"
+      @data ||= data || "/tmp/geminabox-test-data/local"
     end
 
     def app(&block)
@@ -41,7 +41,7 @@ class Geminabox::TestCase < MiniTest::Unit::TestCase
     def should_push_gem(gemname = :example, *args)
       test("can push #{gemname}") do
         assert_can_push(gemname, *args)
-        assert File.exists?( File.join(config.data,'local', "gems", File.basename(gem_file(gemname, *args)) ) ), "Gemfile not in data dir."
+        assert File.exists?( File.join(config.data, "gems", File.basename(gem_file(gemname, *args)) ) ), "Gemfile not in data dir."
       end
     end
 
@@ -134,9 +134,9 @@ class Geminabox::TestCase < MiniTest::Unit::TestCase
 
     @app_server = fork do
       begin
-        Geminabox.data = config.data
-        STDERR.reopen("/tmp/err")
-        STDOUT.reopen("/tmp/out")
+        Geminabox.local_data = config.data
+        $stderr.reopen("/tmp/err")
+        $stdout.reopen("/tmp/out")
         Rack::Server.start(server_options)
       ensure
         exit
