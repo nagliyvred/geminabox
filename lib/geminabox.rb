@@ -19,8 +19,6 @@ class Geminabox < Sinatra::Base
   set :repos, "http://rubygems.org"
   set :public_folder, File.join(File.dirname(__FILE__), *%w[.. public])
   set :data, File.join(File.dirname(__FILE__), *%w[.. data])
-  set :local_data, File.join(File.dirname(__FILE__), *%w[.. data local])
-  set :general_data, File.join(File.dirname(__FILE__), *%w[.. data general])
   set :build_legacy, false
   set :incremental_updates, false
   set :views, File.join(File.dirname(__FILE__), *%w[.. views])
@@ -28,6 +26,15 @@ class Geminabox < Sinatra::Base
   set :logging, true
   set :dump_errors, true
   use Hostess
+
+  def self.local_data
+    File.join(settings.data, 'local')
+  end
+
+  def self.general_data
+    File.join(settings.data, 'general')
+  end
+
 
   class << self
     def disallow_replace?
@@ -119,12 +126,15 @@ class Geminabox < Sinatra::Base
   end
 
   post '/upload' do
+    if File.exists? Geminabox.data
+      error_response( 500, "Please ensure #{File.expand_path(Geminabox.data)} is a directory." ) unless File.directory? Geminabox.data
+    end
     if File.exists? Geminabox.local_data
       error_response( 500, "Please ensure #{File.expand_path(Geminabox.local_data)} is a directory." ) unless File.directory? Geminabox.local_data
       error_response( 500, "Please ensure #{File.expand_path(Geminabox.local_data)} is writable by the geminabox web server." ) unless File.writable? Geminabox.local_data
     else
       begin
-        FileUtils.mkdir_p(settings.local_data)
+        FileUtils.mkdir_p(Geminabox.local_data)
       rescue Errno::EACCES, Errno::ENOENT, RuntimeError => e
         error_response( 500, "Could not create #{File.expand_path(Geminabox.local_data)}.\n#{e}\n#{e.message}" )
       end
@@ -135,12 +145,12 @@ class Geminabox < Sinatra::Base
       halt [400, erb(:upload)]
     end
 
-    FileUtils.mkdir_p(File.join(settings.local_data, "gems"))
+    FileUtils.mkdir_p(File.join(Geminabox.local_data, "gems"))
 
     tmpfile.binmode
 
     gem_name = File.basename(name)
-    dest_filename = File.join(settings.local_data, "gems", gem_name)
+    dest_filename = File.join(Geminabox.local_data, "gems", gem_name)
 
     if Geminabox.disallow_replace? and File.exist?(dest_filename)
       existing_file_digest = Digest::SHA1.file(dest_filename).hexdigest
@@ -205,7 +215,7 @@ HTML
   end
 
   def indexer
-    Gem::Indexer.new(settings.local_data, :build_legacy => settings.build_legacy)
+    Gem::Indexer.new(Geminabox.local_data, :build_legacy => settings.build_legacy)
   end
 
   def file_path
@@ -219,7 +229,7 @@ HTML
   def load_gems
     @loaded_gems ||=
       %w(specs prerelease_specs).inject(GemVersionCollection.new){|gems, specs_file_type|
-        specs_file_path = File.join(settings.local_data, "#{specs_file_type}.#{Gem.marshal_version}.gz")
+        specs_file_path = File.join(Geminabox.local_data, "#{specs_file_type}.#{Gem.marshal_version}.gz")
         if File.exists?(specs_file_path)
           gems |= Geminabox::GemVersionCollection.new(Marshal.load(Gem.gunzip(Gem.read_binary(specs_file_path))))
         end
@@ -233,7 +243,7 @@ HTML
 
   helpers do
     def spec_for(gem_name, version)
-      spec_file = File.join(settings.local_data, "quick", "Marshal.#{Gem.marshal_version}", "#{gem_name}-#{version}.gemspec.rz")
+      spec_file = File.join(Geminabox.local_data, "quick", "Marshal.#{Gem.marshal_version}", "#{gem_name}-#{version}.gemspec.rz")
       Marshal.load(Gem.inflate(File.read(spec_file))) if File.exists? spec_file
     end
   end
