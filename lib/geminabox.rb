@@ -7,6 +7,7 @@ require 'rubygems/indexer'
 require 'hostess'
 require 'geminabox/version'
 require 'rss/atom'
+require 'rufus/scheduler'
 
 class Geminabox < Sinatra::Base
   configure do
@@ -25,7 +26,17 @@ class Geminabox < Sinatra::Base
   set :allow_replace, false
   set :logging, true
   set :dump_errors, true
+  set :synchronize_schedule, "0 1 * * *"
   use Hostess
+
+  scheduler = Rufus::Scheduler.start_new
+
+  scheduler.cron settings.synchronize_schedule do
+    puts 'synchronising spec files from the underlying repositories....'
+    sync_specs
+    puts 'spec files updated'
+  end
+    
 
   def self.local_data
     File.join(settings.data, 'local')
@@ -50,7 +61,7 @@ class Geminabox < Sinatra::Base
 
   autoload :GemVersionCollection, "geminabox/gem_version_collection"
   autoload :DiskCache, "geminabox/disk_cache"
-  autoload :Merger, "geminabox/spec_merge.rb"
+  autoload :SpecMerge, "geminabox/spec_merge.rb"
 
   before do
     headers 'X-Powered-By' => "geminabox #{GeminaboxVersion}"
@@ -117,6 +128,11 @@ class Geminabox < Sinatra::Base
   get '/reindex' do
     reindex(:force_rebuild)
     redirect url("/")
+  end
+
+  get '/sync_specs' do
+    sync_specs
+    redirect url('/')
   end
 
   delete '/gems/*.gem' do
@@ -239,6 +255,10 @@ HTML
 
   def index_gems(gems)
     Set.new(gems.map{|gem| gem.name[0..0].downcase})
+  end
+
+  def self.sync_specs
+    SpecMerge.new().run_merge()
   end
 
   helpers do

@@ -27,7 +27,7 @@ FILES = [ 'latest_specs.4.8.gz',
 
       Geminabox.repos.each do |repo|
         puts "merging #{file}"
-        filename = Geminabox.local_data + file
+        filename = File.join(Geminabox.local_data, file)
         merger = Merger.new(repo, filename) 
         result = merger.merge
         merger.marshal_to_file(Geminabox.general_data + file, result)
@@ -88,9 +88,4 @@ class Merger
   end
 
 end
-=begin
-TEST_DATA_DIR="/Users/tim/work/geminabox/data"
-Geminabox.local_data = TEST_DATA_DIR + "/local/"
-Geminabox.general_data = TEST_DATA_DIR + "/general/"
-SpecMerge.new().run_merge
-=end
+
