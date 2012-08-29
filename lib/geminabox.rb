@@ -131,7 +131,7 @@ class Geminabox < Sinatra::Base
   end
 
   get '/sync_specs' do
-    sync_specs
+    Geminabox.sync_specs
     redirect url('/')
   end
 
